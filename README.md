@@ -3,6 +3,7 @@
 - 🌱 I’m currently learning Biology in Shangdong Agricultural School, China
 - 💞️ I’m looking to collaborate on furth study aboard
 - 📫 How to reach me? If you want to reach me, you could correspend me with email chenqingyang4869@163.com
+- It's glad to see you on Github, hoping a nice time together with you.
 
 <!---
 DonnaQYchen/DonnaQYchen is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
