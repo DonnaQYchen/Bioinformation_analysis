@@ -1,0 +1,145 @@
+getwd()
+setwd("/Niche model")
+data<-read.csv("./hds_for_biomod2.csv")
+head(data)
+library(biomod2)
+install.packages("biomod2")
+library(rgdal)
+names(data)
+myRespName <- 'H8'
+myRespName
+data.sp <- SpatialPoints(cbind(data$lonitude, data$latitude))
+#绑定行或绑定列可以通过 cbind()和 rbind()来实现
+
+proj4string(data.sp) <- "+proj=longlat +datum=WGS84 +no_defs"
+#设置投影坐标系 将球面坐标转化为平面坐标的过程称为投影#
+#Proj.4是开源GIS著名的地图投影库。Proj.4使用参数的方式来描述坐标系统，基本格式为：“+param=value”。
+#其中，“+proj”表示投影类型代字，“longlat”代表该坐标系为地理坐标系；“+datum”表示大地基准面代字。
+#WGS84:World Geodetic System 1984，是为GPS全球定位系统使用而建立的坐标系统。
+
+myResp<-as.numeric(data[,myRespName])
+myResp
+myRespXY<-data[,c("lonitude","latitude")]
+myRespXY
+myExpl<-stack(list.files(path="./bio_10m_bil/bio_10m_bil/",pattern="*.bil$", full.names=TRUE))
+#堆叠数据一行代表一个样品，比如内置数据 testdata<-iris[,c(4,5)] 转换为非堆叠数据
+#testdata.unstack=unstack(testdata)
+#list.files将文件夹中的文件名存到列表当中，可以用于批量导入文件
+#full.names：是否返回路径+文件名，默认是否，如果是否，则返回文件名
+
+myExpl
+cbound<-readOGR("./China_4m/China_4m/bou1_4l.shp")
+#readOGR()函数读入外部shp格式的中国地图
+
+plot(cbound)
+proj4string(cbound)
+proj4string(cbound) <-"+proj=longlat +datum=WGS84 +no_defs"
+cbound.myExpl <- spTransform(cbound, crs(myExpl))
+myExpl.crop <- crop(myExpl, cbound.myExpl)
+data.sp.myExpl <- spTransform(data.sp, crs(myExpl.crop))
+plot(myExpl.crop[[1]])
+plot(myExpl[[1]])
+plot(myExpl.crop[[1]])
+plot(data.sp.myExpl, add = T)
+plot(cbound.myExpl, add = T)
+myExpl.crop2<-stack(myExpl.crop)
+myBiomodData_H8 <- BIOMOD_FormatingData(data.sp.myExpl,myExpl.crop2,resp.name = myRespName,PA.nb.rep=10??,PA.nb.absences=length(data.sp.myExpl),PA.strategy = 'random')
+plot(myBiomodData_H8)
+#一共39个点，取39个点作为拟不存在点，重复十次，共得到429个点
+#形成biomod2的输入文件（空间数据或自变量，图层或解释变量，物种名称，选择“拟不存在点”的次数，每次选择虚拟缺席点的数量）
+
+myExpl.crop
+myExpl.crop2
+myBiomodOption <- BIOMOD_ModelingOptions (MAXENT.Phillips = list(path_to_maxent.jar="./maxent/", maximumiterations=5000??,  memory_allocated=1024, visible =FALSE, linear=TRUE, quadratic = TRUE, product = TRUE, threshold = FALSE, hinge = TRUE, lq2lqptthreshold = 80, l2lqthreshold = 10, hingethreshold=15, beta_threshold=-1, beta_categorical=-1, beta_lqp=-1, beta_hinge = -1, defaultprevalence = 0.5))
+myBiomodModelOut_H8 <- BIOMOD_Modeling(myBiomodData_H8,models = c('MAXENT.Phillips','SRE','RF','MARS','GLM','GBM'),models.options = myBiomodOption,NbRunEval=1, DataSplit=80??, Prevalence=0.5??, VarImport=1, models.eval.meth = c('KAPPA','TSS','ROC')??, SaveObj = TRUE,rescal.all.models = TRUE, do.full.models = FALSE??, modeling.id = "test")
+get_evaluations(myBiomodModelOut_H8)
+#获得每一模型针对每一组"拟不存在点"的评估数据
+
+gg1 <- models_scores_graph(myBiomodModelOut_H8, by = "models", metrics = c("ROC", "TSS"))
+#将评估结果图像化,一次只能呈现两个评估参数的结果，by models意思是根据拟好最好的几个模型进行分组评估值（平均值、SD值）计算
+
+myBiomodModelEval_H8<-get_evaluations(myBiomodModelOut_H8)
+#评估结果存入
+
+dimnames(myBiomodModelEval_H8)
+ROC<-myBiomodModelEval_H8["ROC","Testing.data",,,]
+#调取分组数据中每个模型每组重复运算的ROC值
+
+TSS<-myBiomodModelEval_H8["TSS","Testing.data",,,]
+#调取分组数据中每个模型每组重复运算的TSS值
+
+rfModel.resp <- BIOMOD_LoadModels(myBiomodModelOut_H8, models = "RF")
+#加载某一模型的结果
+
+myRespPlot2D <- response.plot2(models = rfModel.resp, Data = get_formal_data(myBiomodModelOut_H8, "expl.var"), show.variables = get_formal_data(myBiomodModelOut_H8, "expl.var.names"), do.bivariate = FALSE, fixed.var.metric = "median", col = c("blue", "red"),legend = TRUE, data_species = get_formal_data(myBiomodModelOut_H8,'resp.var'),display_title=FALSE) 
+#response.plot2功能可以为2维或3维的物种分布模型绘制响应曲线，
+#get_formal_data(myBiomodModelOut_H8, "expl.var")拿到解释变量（因变量），即429个点的19个气候因子数据
+#get_formal_data(myBiomodModelOut_H8, "resp.var")拿到响应变量，即429个点的分布信息（1表示presence,NA表示？）
+#show.variables 为输入解释变量名字
+#do.bivariate 选择FALSE是对每一个参数分别做二维响应曲线；选择TRUE对每一对参数做三维响应曲线
+#fixed.var.metric 选择“平均值”(默认值)、“中值”、“最小值”或“最大值”，意思是指定在对其中一个变量进行响应曲线估计时，将其余变量固定为常量的统计量。For building the predicted response curves, n-1 variables are set constant to a fixed value (mean, median, min or max i.e fixed.var.metric arg) and only the remaining one (resp. 2 for 3D response plot) is varying across its whole range (given by Data). 表明运算并未考虑因子之间的相关性
+#data_species : vector containing data species occurances. Have to match with Data. If given, the statistic used to fix variables value will be calculated only over presences points. (Considered only if Data is under table format)
+#做出的2D图纵坐标是relative likelihoods，即相对似然度,可以代表气候变量对整体物种分布区模拟结果的贡献率或者重要性
+
+get_variables_importance(myBiomodModelOut_H8)
+ #拿到每组运算这些因子贡献度的具体数据
+
+myBiomodProj_H8 <- BIOMOD_Projection(modeling.output = myBiomodModelOut_H8,new.env = myExpl.crop2,proj.name = 'current',selected.models = 'all',binary.meth = 'TSS',compress = 'xz',clamping.mask = F,output.format = '.grd')
+#clamping.mask意思是分布区模拟的结果包括的范围太大了，用图层限制下结果的范围，但是这一步很麻烦，一般需要一个raster的图层去截取你所要的范围，所以一般是把环境变量的范围直接限定在中国全境就好了，这样分析的时候不需要这一步了。
+
+list.files("H8/proj_current/")
+#列出所有输出文件（如下）
+[1] "H8.current.projection.out"     "proj_current_ClampingMask.grd"
+[3] "proj_current_ClampingMask.gri" "proj_current_H8_TSSbin.grd"   
+[5] "proj_current_H8_TSSbin.gri"    "proj_current_H8.grd"          
+[7] "proj_current_H8.gri" 
+
+plot(myBiomodProj_H8, str.grep="RF")
+projections <- stack("./H8/proj_current/proj_current_H8.grd")
+projections.RF <- subset(projections, grep("RF", names(projections)))
+#subset: Extract a set of layers from a RasterStack or RasterBrick object.
+
+names(projections.RF)
+projections.RF.mean <- mean(projections.RF)/1000 
+#合并并求平均
+
+plot(projections.RF.mean) 
+#RF单一模型的整合结果
+
+myBiomodEM_H8 <- BIOMOD_EnsembleModeling(modeling.output = myBiomodModelOut_H8,chosen.models = 'all',em.by='all',eval.metric = c('TSS'),eval.metric.quality.threshold = c(0.7),models.eval.meth = c('KAPPA','TSS','ROC'),prob.mean = T,prob.cv = T,prob.ci = T,prob.ci.alpha = 0.05,prob.median = T,committee.averaging = T,prob.mean.weight = T,prob.mean.weight.decay = 'proportional' )
+#该指令可以得到一个将多个模型整合起来以后的投射的整体结果(EM short for ensemble models)
+# eval.metric.quality.threshold = c(0.7)：exclude all models having a TSS score lower than 0.7.
+#prob.mean Estimate the mean probabilities across predictions 估算合并方法之间的平均值
+#prob.cv Estimate the coefficient of variation across predictions 估算变异系数
+#prob.ci Estimate the confidence interval around the prob.mean 估算平均值的置信区间
+#prob.ci.alpha Significance level for estimating the confidence interval. Default = 0.05
+#prob.median计算中值
+#prob.mean.weigh 概率加权和（看帮助文本详细说明，原理是先将数据二元化）
+#prob.mean.weight.decay定义权重的相对重要性,The value 'proportional' (default) is also possible for the prob.mean.weight.decay: the weights are awarded for each method proportionally to their evaluation scores. 
+权重与评估值呈比例
+#加权平均值即将各数值乘以相应的权数，然后加总求和得到总体值，再除以总的单位数。加权平均值的大小不仅取决于总体中各单位的数值（变量值）的大小，而且取决于各数值出现的次数（频数），由于各数值出现的次数对其在平均数中的影响起着权衡轻重的作用，因此叫做权数。因为加权平均值是根据权数的不同进行的平均数的计算，所以又叫加权平均数。
+#生成文件
+H8_EMcaByTSS_mergedAlgo_mergedRun_mergedData
+H8_EMciInfByTSS_mergedAlgo_mergedRun_mergedData
+H8_EMciSupByTSS_mergedAlgo_mergedRun_mergedData
+H8_EMcvByTSS_mergedAlgo_mergedRun_mergedData
+H8_EMmeanByTSS_mergedAlgo_mergedRun_mergedData
+H8_EMmedianByTSS_mergedAlgo_mergedRun_mergedData
+H8_EMwmeanByTSS_mergedAlgo_mergedRun_mergedData
+# print summary
+
+myBiomodEM
+get_evaluations(myBiomodEM_H8)
+# get evaluation scores 针对多种整合模型方法进行评估（如平均值mean，加权平均wmean,中值median,平均值置信区间ci）
+
+myBiomodH8_current<-BIOMOD_EnsembleForecasting(projection.output = myBiomodProj_H8,EM.output =myBiomodEM_H8)
+#整合结果形成图层文件
+#输出文件为：
+H8.current.ensemble.projection.out
+proj_current_H8_ensemble.grd
+proj_current_H8_ensemble.gri
+individual_projections-
+  H8_EMwmeanByTSS_mergedAlgo_mergedRun_mergedData.grd   H8_EMwmeanByTSS_mergedAlgo_mergedRun_mergedData.gri   H8_EMcaByTSS_mergedAlgo_mergedRun_mergedData.grd   H8_EMcaByTSS_mergedAlgo_mergedRun_mergedData.gri   H8_EMmedianByTSS_mergedAlgo_mergedRun_mergedData.grd   H8_EMmedianByTSS_mergedAlgo_mergedRun_mergedData.gri   H8_EMcvByTSS_mergedAlgo_mergedRun_mergedData.grd   H8_EMcvByTSS_mergedAlgo_mergedRun_mergedData.gri   H8_EMmeanByTSS_mergedAlgo_mergedRun_mergedData.grd   H8_EMmeanByTSS_mergedAlgo_mergedRun_mergedData.gri
+#Ensemble Forcasting means to project the meta- models you have created with BIOMOD_EnsembleModeling. BIOMOD_EnsembleForecasting required the output of BIOMOD_EnsembleModeling and BIOMOD_Projection. It will combine the projections made according to models ensemble rules defined at the ensemble modelling step.
+
+EM<-stack("./H8/proj_current/individual_projections/H8_EMmeanByTSS_mergedAlgo_mergedRun_mergedData.grd")
