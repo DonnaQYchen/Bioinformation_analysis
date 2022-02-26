@@ -1,0 +1,93 @@
+man+XXX=??packages in Rstudio
+ls #显示当前路径下的文件
+  ls -a
+  ls -althr
+  ls -altr
+pwd #查看路径
+cd #返回上一级路径
+cd cqy  #进入cqy
+cd ..  #返回主菜单
+
+2021.12.25
+User51@soybean:~/cqy$ cp /home/Data/Osativa_323_v7.0.protein.fa.gz .
+#将Osativa_323_v7.0.protein.fa.gz从Data中复制到当前路径下，复制多个文件时用{}把文件名括起来
+cp /home/Data/Osativa_323_v7.0.protein.fa.gz /home/User11
+#复制到某一路径下
+
+一、构建基因模型，进行序列比对，构建系统发育树
+cat  Athaliana_167_TAIR10.annotation_info.txt |grep GASA #筛选拟南芥中GASA基因家族
+cat  Athaliana_167_TAIR10.annotation_info.txt |grep GASA |prel -alne 'print$F[2]''>At.GASA.list 
+#上面的指令重新输出到新的文件At.GASA.list中，print$F[2]是选择输出第几行，本例子中第二行是GASA基因
+
+source /home/soybean/.bashrc #能够使用老师文件里安装的程序，输入之后User51@soybean:~$前面出现，
+seqtk subseq Athaliana_167_TAIR10.protein.fa At.GASA.list >At.GASA.fa  #从蛋白中把序列提取出来
+muscle -in At.GASA.fa -out At.GASA.align.fa  #序列比对
+hmmbuild At.GASA.hmm At.GASA.align.fa
+#利用拟南芥的数据进行统计(At.GASA.align.fa文件)构建GASA基因家族模型(At.GASA.hmm)
+
+gunzip Osativa_323_v7.0.protein.fa.gz #解压缩指令，zip用unzip，gz用gunzip
+hmmsearch --tblout At.GASA.list At.GASA.hmm Osativa_323_v7.0.protein.fa >Oz.GASA.list
+#寻找Osativa_323_v7.0.protein.fa.gz中tblout文件，在水稻中找到的符合拟南芥基因模型的水稻基因，输出到Os.MASA.list
+hmmsearch --tblout Oz.GASA.lst.list Oz.GASA.lst.hmm Osativa_323_v7.0.protein.fa
+#用水稻的GASA基因模型再寻找一遍水稻中GASA基因
+cat Oz.GASA.list |grep GASA |perl -alne 'print $F[0]'>Oz.GASA.lst.list
+#选择第0行的数据储存到Oz.GASA.lst.list中
+seqtk subseq Osativa_323_v7.0.protein.fa Oz.GASA.list >Oz.GASA.lst.fa
+muscle -in Oz.GASA.lst.fa -out Oz.GASA.lst.align.fa
+hmmbuild Oz.GASA.lst.hmm Oz.GASA .lst.align.fa
+
+二、共线性分析
+1.数据下载
+python -m jcvi.apps.fetch phytozome
+Phytozome Login: xxxxxxxx
+Phytozome Password:
+# 下载数据，输入JGI网站的账户密码
+python -m jcvi.apps.fetch phytozome Gmax, Athaliana
+#输入要下载的物种名，可以参考登录之后显示出来的
+
+2.准备基因组数据并修改格式
+python -m jcvi.formats.gff bed --type=mRNA --key=Name Gmax_275_Wm82.a2.v1.gene.gff3.gz -o Gmax.bed
+python -m jcvi.formats.gff bed --type=mRNA --key=Name Athaliana_167_TAIR10.gene.gff3.gz -o At.bed
+python -m jcvi.formats.fasta format Gmax_275_Wm82.a2.v1.cds.fa.gz Gmax.cds
+python -m jcvi.formats.fasta format Athaliana_167_TAIR10.cds.fa.gz At.cds
+# 重新格式化Phytozome FASTA文件
+python -m jcvi.formats.gff bed --type=mRNA --key=Name --primary_only Gmax_275_Wm82.a2.v1.gene.gff3.gz -o Gmax.bed
+
+3.成对同线性可视化
+ls *.???
+python -m jcvi.compara.catalog ortholog Gmax At --no_strip_names
+ls Gmax.At.*
+python -m jcvi.graphics.dotplot Gmax.At.anchors
+rm Gmax.At.last.filtered #rm是删除命令，能够删除Gmax.At.last.filtered文件
+python -m jcvi.compara.catalog ortholog Gmax At --cscore=.99 --no_strip_names
+python -m jcvi.graphics.dotplot Gmax.At.anchors
+python -m jcvi.compara.synteny depth --histogram Gmax.At.anchors
+#测试同步模式是否确实是1:1
+
+4.成对共线性可视化
+python -m jcvi.compara.synteny screen --minspan=30 --simple Gmax.At.anchors Gmax.At.anchors.new
+#创建.simple文件
+
+vi seqids #设置需要展示的染色体号
+Chr01,Chr02,Chr03,Chr04,Chr05,Chr06,Chr07,Chr08,Chr09,Chr10,Chr11,Chr12,Chr13,Chr14,Chr15,Chr16,Chr17,Chr18,Chr19,Chr20
+Chr1,Chr2,Chr3,Chr4,Chr5
+#seqids文件就是视自己想要plot的染色体而定，两行，染色体或者scaffold之间用逗号分隔
+#seqid中的染色体名称应跟bed文件中染色体名称一致，和layout中label对应
+
+vi layout #设置颜色、长宽等
+# y, xstart, xend, rotation, color, label, va, bed
+.6,     .1,    .8,       0,      , Gmax, top, Gmax.bed
+.4,     .1,    .8,       0,      , At, top, At.bed
+# edges
+e, 0, 1, Gmax.At.anchors.simple
+注释：#layout文件，用来规定染色体排布的一个配置文件
+          #输入完成后如果要保存，要先退回到命令模式（因为保存也是一种命令），在输入模式下按ESC键退回到命令模式，注意看屏幕左下角，当命令模式时无提示信息或者提示文件名等信息，等处于输入模式时，左下角会提示 -- INSERT --
+         #在命令模式下如何保存：
+  :wq   保存并且退出
+  :w   只保存不推出
+  :q   不保存退出  进来看了一下没改退出
+  :q!   不保存强制退出
+  :wq!  保存并强制退出
+参考：https://www.cnblogs.com/lanjianhappy/p/6020339.html
+
+python -m jcvi.graphics.karyotype seqids layout
