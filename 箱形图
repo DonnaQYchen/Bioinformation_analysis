@@ -1,0 +1,35 @@
+library(stringr)
+library(gcookbook)
+library(ggplot2)
+data<-read.table("C:/Users/donnachen/Downloads/data.txt",sep="\t",header=T,row.names=1,quote="")
+#路径和文档名要随着自己文档的位置和名称更改
+
+data$taxa<-str_replace_all(data$taxa,'[ab]',"s")
+#taxa写物种那一列的名称，如示例中的region
+
+head(data)
+p<-ggplot(data,aes(x=taxa,y=polar.diameter))+
+# x轴写的是物种那一列的名称（示例中的region），y轴写head那一步显示的数据那一列的名称（如图中polar.diameter）
+  geom_boxplot(aes(fill=taxa))+
+#标红的地方写物种那一列的名称，如示例中的region
+
+theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust = 0.5))+
+#衡轴坐标倾斜
+
+labs(x="taxa",y="P-polar diameter")+
+#标红的地方写的是x轴和y轴的名称
+
+  theme(legend.position = "none")
+ggsave(p,filename="C:/Users/HP/Desktop/polar diameter.pdf")
+#绘制的储存路径，根据需要更改
+
+#示例#
+ 
+ggplot(data,aes(x = taxa, y = equatorial.diameter)) +
+geom_boxplot(alpha=0.7) +
+scale_y_continuous(name = "Equatorial diameter")+
+scale_x_discrete(name = "Taxa") +
+theme_bw() +
+theme(plot.title = element_text(size = 14, face =  "bold"),
+axis.title = element_text(face="bold"),
+axis.text.x=element_text(size = 11))
