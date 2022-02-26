@@ -1,0 +1,54 @@
+library(ggtree)
+library(treeio)
+setwd("/Users/donnachen/Downloads")
+a<-read.newick("./nramp.nwk")
+# a<-read.newick：读取当前工作目录中的nramp.nwk文件并赋值给a，需要加载treeio包
+
+##使用read.newick加载树不用这一步##
+df<-a[,3:6]
+选取第3至6列的数据 
+rownames(df)<-paste(a$group,1:140,sep="_") 
+#有x行就写1:x
+hc<-hclust(dist(df))
+
+p1<-ggtree(a,layout="circular",branch.length="none")+
+#可视化树结构，用环形树表示,如果要将branch.length展示，需要删除branch.length = "none"
+
+geom_tiplab2(color="seagreen", size = 2, hjust = -0.2)+xlim(NA, 20)
+#添加label，也就是基因名。
+#给矩形树添加label的函数是geom_tiplab()
+#size是字体大小，color是字体颜色，hjust是距离节点的距离，改变xlim的范围
+#如果tiplab字体颜色要改变成各种分支的颜色，去掉color就可以了,或者全部改成黑色。
+
+p2<-p1+geom_text2(aes(label=node))
+#添加背景色高亮显示进化树的节点ID的数值
+plot(p2)
+
+tree<-p1+ geom_strip(14, 17, barsize = 3, color = "steelblue", offset = 7, label = "Clade I", offset.text = 1, angle = 60, fontsize = 4, hjust = "center", extend = 0.3)+
+#前两个数字就是对应的节点(taxa1和taxa2)，从起始到结束。根据geom_text2(aes(label=node))函数做的图确定。
+#barsize是色块的宽度，color是色块颜色。
+#offset是距离节点的位置，这个参数需要和xlim进行配合，将色块放到合适的位置，不会和label互相覆盖。这里的label就是分类名，例如Clade I。
+#offset.text这个参数是来调整label的位置的，它的起始位置从strip开始，不是taxa开始。extend是用来调整色块之间的间隔大小，默认是0；0.5正好可以将色块拼接成一个完整的圈。
+#angle是用来调整label的角度，默认是0，顺时针就是正的数值。align在这里似乎没有什么作用。
+#hjust= "center"是将label放置在strip的中间位置。
+
+geom_strip(11, 13, color = "red", barsize = 3, offset = 7, label = "Clade II", offset.text = 1, angle = -15, fontsize = 4, hjust = "center", extend = 0.3)+
+geom_strip(6, 9, color = "orange", barsize = 3, offset = 7, label = "Clade III", offset.text = 1, angle = 10, fontsize = 4, hjust = "center", extend = 0.3)
+print(tree)
+
+##给分支分组上色##
+#构建一个颜色文件，只要包含两个参数就行——node（作图后图中的node）和color，和之前的进化树的node号一一对应起来，格式如下：
+ 
+d<- read.csv("./nramp_color.csv", header = TRUE)
+d <- data.frame(d)
+#使用`%<+%`符号强插入颜色数据到树文件中
+tree1<- tree%<+%d + aes(color = I(color))
+
+geom_hilight(node = 33, fill = "red", alpha = 0.6)
+##为一部分树添加背景颜色，着重显示，这个是自己选择的，也可以不加##
+
+plot(tree)
+
+##打印所有图片，需要安装用来排版的cowplot包，可以不要##
+install.packages("cowplot")
+plot_grid(p1, p2, p3, p4 ,p5, ncol=3, labels=c("A","B", "C", "D", "E"))
