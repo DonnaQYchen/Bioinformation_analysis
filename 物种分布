@@ -1,0 +1,27 @@
+install.packages('ggplot2')
+install.packages('rgdal')
+install.packages('plyr')
+library(plyr)
+#处理大容量excel数据要用到的包
+
+library(ggplot2)
+library(rgdal)
+getwd() #读取R的工作路径
+
+setwd("/Users/donnachen/Downloads") #改变R的工作路径
+
+#读取地图数据和经纬度坐标数据#
+china_map <-readOGR("E:\\x\\CHN_adm1.shp") #读取地图空间数据，地图的存储路径
+
+china_data1<-read.csv("E:\\x\\地构叶作图数据.csv") #读取经纬度坐标，经纬度信息的存储路径；数据应存储成csv格式文件；把CHN_adm1.shp(地图数据)和经纬度坐标数据放在工作路径内！！！
+
+data2<-read.csv("E:\\x\\广东地构叶作图数据.csv")
+data3<-read.csv("E:\\x\\云南地构叶作图数据.csv")
+ggplot()+
+geom_polygon(data=china_map, aes(x=long, y=lat, group=group),fill="grey95", colour="grey60",size=0.25)+ #中国地图，需要的话也可以用格式正确的其他国家或省市地图
+
+geom_point(aes(x = a1[,1],y = a1[,2]),size=1,fill="black", alpha=1, colour="red")+
+geom_point(aes(x = a2[,1],y = a2[,2]),size=1,fill="black", alpha=1, colour="green")+
+geom_point(aes(x = a3[,1],y = a3[,2]),size=1,fill="black", alpha=1, colour="blue")+  #散点图，坐标在地图上的位置
+
+coord_map("polyconic")
