@@ -1,0 +1,3 @@
+如何安装ggtree
+install.packages("BiocManager")
+BiocManager::install("ggtree")
