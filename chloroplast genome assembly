@@ -1,0 +1,13 @@
+### 1.使用oatk组装叶绿体基因组 ###
+oatk -k 1001 -c 500 dataPath -o name -p ./OatkDB-main/v20230210/angiosperm_pltd.fam
+  #dataPath:自己数据所在路径
+  #name:自己给叶绿体数据组的命名
+  #-p：oatkDB安装路径，“OatkDB-main/v20230210/angiosperm_pltd.fam”不用动
+
+### 2.NOVOPlasty组装叶绿体基因组 ###
+  ##根据自己的数据信息先修改config.txt文件参数；
+  ##！！！注意：组装使用的数据可以是两端测序的clean数据、或者拼接好的数据
+  ##保证NOVOPlasty和config.txt文件在同一路径下，然后运行如下命令：
+  perl ~/software/NOVOPlasty-master/NOVOPlasty4.3.5.pl -c ~/software/NOVOPlasty-master/config.txt
+  
+  
