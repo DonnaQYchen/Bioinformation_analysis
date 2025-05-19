@@ -1,0 +1,13 @@
+### 1.使用oatk组装叶绿体基因组 ###
+oatk -k 1001 -c 500 dataPath -o outputName -p ./OatkDB-main/v20230210/angiosperm_pltd.fam
+  #oatk使用的是HiFi read数据，不过需要用原始数据，拼接好的数据会过滤细胞器的数据
+  #dataPath:自己数据所在路径
+  #-o:输出文件名的前缀
+  #-c必须根据实际的测序深度来，作者推荐该值在平均测序深度的5-10倍，可以拼接好后用拼接的序列和近缘种的叶绿体基因组序列进行比较，如果差异较大，可以修改数值再重新跑
+  #-p：oatkDB安装路径，“OatkDB-main/v20230210/angiosperm_pltd.fam”不用动
+
+### 2.NOVOPlasty组装叶绿体基因组 ###
+  ##根据自己的数据信息先修改config.txt文件参数,文件可以在软件的安装路径中找到；
+  ##！！！注意：组装使用的数据可以是两端测序的clean数据、或者拼接好的数据
+  ##保证NOVOPlasty和config.txt文件在同一路径下，然后运行如下命令：
+  perl ~/software/NOVOPlasty-master/NOVOPlasty4.3.5.pl -c ~/software/NOVOPlasty-master/config.txt
